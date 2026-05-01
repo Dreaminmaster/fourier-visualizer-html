@@ -7,6 +7,7 @@ const playBtn = document.getElementById('playBtn');
 const copyBtn = document.getElementById('copyBtn');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
 const jsonInput = document.getElementById('jsonInput');
 const termsRange = document.getElementById('termsRange');
 const termsValue = document.getElementById('termsValue');
@@ -25,7 +26,7 @@ let pausedProgress = 0;
 let lastEndpoint = null;
 
 function setStatus(text) {
-  statusEl.textContent = '状态：' + text;
+  statusEl.textContent = 'Status: ' + text;
 }
 
 function resizeForDevicePixelRatio() {
@@ -211,7 +212,7 @@ function animateFrame(now) {
     requestAnimationFrame(animateFrame);
   } else {
     pausedProgress = progress;
-    setStatus(progress >= 1 ? '播放完成。可复制 JSON 或调整项数重播。' : '已暂停。');
+    setStatus(progress >= 1 ? 'playback complete. You can copy JSON or change terms to replay.' : 'paused.');
   }
 }
 
@@ -223,12 +224,12 @@ function resetPlayback() {
 
 function play() {
   if (!epicycles.length) {
-    setStatus('还没有 Fourier 数据，请先生成或导入。');
+    setStatus('no Fourier data yet. Generate or import a replay first.');
     return;
   }
   isPlaying = true;
   startTime = performance.now();
-  setStatus('正在播放 Fourier 重建动画。');
+  setStatus('playing Fourier reconstruction animation.');
   requestAnimationFrame(animateFrame);
 }
 
@@ -257,6 +258,23 @@ function buildExportPayload() {
   };
 }
 
+function loadReplayData(data) {
+  if (!Array.isArray(data.epicycles)) throw new Error('missing epicycles array');
+  rawPoints = data.source?.rawPoints || [];
+  sampledPoints = data.source?.sampledPoints || [];
+  epicycles = data.epicycles;
+  if (data.settings?.duration) durationInput.value = String(data.settings.duration);
+  if (data.settings?.sampleCount) sampleInput.value = String(data.settings.sampleCount);
+  const preferredTermCount = data.settings?.termCount || Math.min(80, epicycles.length);
+  termsRange.max = String(epicycles.length);
+  termsRange.value = String(Math.max(1, Math.min(preferredTermCount, epicycles.length)));
+  termsValue.textContent = termsRange.value;
+  resetPlayback();
+  lastEndpoint = computeEndpoint(0, getTermCount());
+  drawScene();
+  setStatus('import successful. You can replay it now.');
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   drawing = true;
   isPlaying = false;
@@ -265,10 +283,11 @@ canvas.addEventListener('pointerdown', (e) => {
   epicycles = [];
   resultTrail = [];
   lastEndpoint = null;
+  pausedProgress = 0;
   const p = getPointerPos(e);
   rawPoints.push(p);
   drawScene();
-  setStatus('正在绘制轨迹…');
+  setStatus('drawing...');
 });
 
 canvas.addEventListener('pointermove', (e) => {
@@ -284,10 +303,11 @@ canvas.addEventListener('pointermove', (e) => {
 function finishDrawing() {
   if (!drawing) return;
   drawing = false;
-  setStatus(rawPoints.length > 1 ? '绘制完成，可点击“生成 Fourier”。' : '点太少，请重新绘制。');
+  setStatus(rawPoints.length > 1 ? 'drawing complete. Click “Generate Fourier”.' : 'too few points. Please draw again.');
 }
 canvas.addEventListener('pointerup', finishDrawing);
 canvas.addEventListener('pointerleave', finishDrawing);
+canvas.addEventListener('pointercancel', finishDrawing);
 
 clearBtn.addEventListener('click', () => {
   drawing = false;
@@ -299,13 +319,14 @@ clearBtn.addEventListener('click', () => {
   pausedProgress = 0;
   isPlaying = false;
   jsonInput.value = '';
+  if (importFile) importFile.value = '';
   drawScene();
-  setStatus('已清空。请重新绘制轨迹。');
+  setStatus('cleared. Draw a new path to begin.');
 });
 
 analyzeBtn.addEventListener('click', () => {
   if (rawPoints.length < 2) {
-    setStatus('请先绘制一条连续轨迹。');
+    setStatus('draw a continuous path first.');
     return;
   }
   const sampleCount = Math.max(64, Number(sampleInput.value) || 512);
@@ -318,7 +339,8 @@ analyzeBtn.addEventListener('click', () => {
   }
   termsValue.textContent = termsRange.value;
   resetPlayback();
-  setStatus(`Fourier 已生成：${epicycles.length} 项，可播放或导出。`);
+  lastEndpoint = computeEndpoint(0, getTermCount());
+  setStatus(`Fourier generated with ${epicycles.length} terms. Ready to replay or export.`);
   drawScene();
 });
 
@@ -338,29 +360,29 @@ termsRange.addEventListener('input', () => {
     const endpoint = computeEndpoint(0, getTermCount());
     lastEndpoint = endpoint;
     drawScene();
-    setStatus(`已切换为前 ${getTermCount()} 项，可重新播放。`);
+    setStatus(`switched to the top ${getTermCount()} terms. Replay to compare the approximation.`);
   }
 });
 
 copyBtn.addEventListener('click', async () => {
   if (!epicycles.length) {
-    setStatus('没有可复制的数据，请先生成或导入。');
+    setStatus('nothing to copy yet. Generate or import a replay first.');
     return;
   }
   const text = JSON.stringify(buildExportPayload(), null, 2);
   try {
     await navigator.clipboard.writeText(text);
     jsonInput.value = text;
-    setStatus('JSON 已复制到剪贴板。');
+    setStatus('JSON copied to clipboard.');
   } catch {
     jsonInput.value = text;
-    setStatus('浏览器剪贴板不可用，已填入文本框，请手动复制。');
+    setStatus('clipboard unavailable. JSON has been placed in the textarea for manual copy.');
   }
 });
 
 exportBtn.addEventListener('click', () => {
   if (!epicycles.length) {
-    setStatus('没有可导出的数据，请先生成或导入。');
+    setStatus('nothing to export yet. Generate or import a replay first.');
     return;
   }
   const blob = new Blob([JSON.stringify(buildExportPayload(), null, 2)], { type: 'application/json' });
@@ -370,30 +392,32 @@ exportBtn.addEventListener('click', () => {
   a.download = 'fourier-visualizer-data.json';
   a.click();
   URL.revokeObjectURL(url);
-  setStatus('JSON 已导出。');
+  setStatus('JSON exported.');
 });
 
 importBtn.addEventListener('click', () => {
   try {
     const data = JSON.parse(jsonInput.value);
-    if (!Array.isArray(data.epicycles)) throw new Error('epicycles 缺失');
-    rawPoints = data.source?.rawPoints || [];
-    sampledPoints = data.source?.sampledPoints || [];
-    epicycles = data.epicycles;
-    if (data.settings?.duration) durationInput.value = String(data.settings.duration);
-    if (data.settings?.sampleCount) sampleInput.value = String(data.settings.sampleCount);
-    const preferredTermCount = data.settings?.termCount || Math.min(80, epicycles.length);
-    termsRange.max = String(epicycles.length);
-    termsRange.value = String(Math.max(1, Math.min(preferredTermCount, epicycles.length)));
-    termsValue.textContent = termsRange.value;
-    resetPlayback();
-    lastEndpoint = computeEndpoint(0, getTermCount());
-    drawScene();
-    setStatus('导入成功，可直接播放复现。');
+    loadReplayData(data);
   } catch (err) {
-    setStatus('导入失败：' + err.message);
+    setStatus('import failed: ' + err.message);
   }
 });
 
+if (importFile) {
+  importFile.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      jsonInput.value = text;
+      const data = JSON.parse(text);
+      loadReplayData(data);
+    } catch (err) {
+      setStatus('file import failed: ' + err.message);
+    }
+  });
+}
+
 resizeForDevicePixelRatio();
-setStatus('请先在右侧画板中画一条连续轨迹。');
+setStatus('draw a continuous path in the canvas area.');

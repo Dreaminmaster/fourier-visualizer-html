@@ -2,56 +2,80 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Fourier Visualizer HTML</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <aside class="panel">
-      <h1>Fourier Visualizer</h1>
-      <p class="desc">手绘一条轨迹，转换为傅里叶旋转圆并复现。支持复制 / 导入 / 导出 JSON。</p>
-
-      <div class="group">
-        <button id="clearBtn">清空画板</button>
-        <button id="analyzeBtn">生成 Fourier</button>
-        <button id="playBtn">播放 / 暂停</button>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>Fourier Visualizer</h1>
+        <p class="desc">Draw a path, convert it into Fourier epicycles, and replay it across desktop and mobile.</p>
       </div>
-
-      <div class="group">
-        <label>保留项数 <span id="termsValue">80</span></label>
-        <input id="termsRange" type="range" min="1" max="256" value="80" />
+      <div class="top-links">
+        <a href="README.md" target="_blank" rel="noreferrer">README</a>
       </div>
+    </header>
 
-      <div class="group">
-        <label>动画时长(ms)</label>
-        <input id="durationInput" type="number" min="1000" step="500" value="12000" />
-      </div>
+    <div class="app">
+      <aside class="panel">
+        <section class="group action-grid">
+          <button id="clearBtn">Clear</button>
+          <button id="analyzeBtn">Generate Fourier</button>
+          <button id="playBtn">Play / Pause</button>
+        </section>
 
-      <div class="group">
-        <label>采样点数</label>
-        <input id="sampleInput" type="number" min="64" max="4096" step="64" value="512" />
-      </div>
+        <section class="group">
+          <label>Terms <span id="termsValue">80</span></label>
+          <input id="termsRange" type="range" min="1" max="256" value="80" />
+        </section>
 
-      <div class="group">
-        <button id="copyBtn">复制 JSON</button>
-        <button id="exportBtn">导出 JSON</button>
-      </div>
+        <section class="group two-col">
+          <div>
+            <label>Duration (ms)</label>
+            <input id="durationInput" type="number" min="1000" step="500" value="12000" />
+          </div>
+          <div>
+            <label>Sample Count</label>
+            <input id="sampleInput" type="number" min="64" max="4096" step="64" value="512" />
+          </div>
+        </section>
 
-      <div class="group">
-        <label for="jsonInput">导入 JSON / 粘贴复现数据</label>
-        <textarea id="jsonInput" rows="10" placeholder="把之前复制的 JSON 粘贴到这里"></textarea>
-        <button id="importBtn">导入并复现</button>
-      </div>
+        <section class="group action-grid compact">
+          <button id="copyBtn">Copy JSON</button>
+          <button id="exportBtn">Export JSON</button>
+        </section>
 
-      <div class="group small">
-        <div id="status">状态：请先在右侧画板中画一条连续轨迹。</div>
-      </div>
-    </aside>
+        <section class="group">
+          <label for="importFile">Import JSON File</label>
+          <input id="importFile" type="file" accept="application/json,.json" />
+        </section>
 
-    <main class="stage-wrap">
-      <canvas id="canvas" width="1000" height="700"></canvas>
-    </main>
+        <details class="group advanced" open>
+          <summary>Paste JSON / Advanced Import</summary>
+          <label for="jsonInput">Paste previously exported JSON data</label>
+          <textarea id="jsonInput" rows="10" placeholder="Paste replay JSON here"></textarea>
+          <button id="importBtn">Import and Replay</button>
+        </details>
+
+        <section class="group small">
+          <div id="status">Status: draw a continuous path in the canvas area.</div>
+        </section>
+      </aside>
+
+      <main class="stage-panel">
+        <div class="stage-head">
+          <div>
+            <h2>Canvas</h2>
+            <p>Works on desktop and mobile. Draw with mouse, touch, or pen.</p>
+          </div>
+        </div>
+        <div class="stage-wrap">
+          <canvas id="canvas" width="1000" height="700"></canvas>
+        </div>
+      </main>
+    </div>
   </div>
 
   <script src="app.js"></script>
