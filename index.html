@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fourier Visualizer HTML</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <h1>Fourier Visualizer</h1>
+      <p class="desc">手绘一条轨迹，转换为傅里叶旋转圆并复现。支持复制 / 导入 / 导出 JSON。</p>
+
+      <div class="group">
+        <button id="clearBtn">清空画板</button>
+        <button id="analyzeBtn">生成 Fourier</button>
+        <button id="playBtn">播放 / 暂停</button>
+      </div>
+
+      <div class="group">
+        <label>保留项数 <span id="termsValue">80</span></label>
+        <input id="termsRange" type="range" min="1" max="256" value="80" />
+      </div>
+
+      <div class="group">
+        <label>动画时长(ms)</label>
+        <input id="durationInput" type="number" min="1000" step="500" value="12000" />
+      </div>
+
+      <div class="group">
+        <label>采样点数</label>
+        <input id="sampleInput" type="number" min="64" max="4096" step="64" value="512" />
+      </div>
+
+      <div class="group">
+        <button id="copyBtn">复制 JSON</button>
+        <button id="exportBtn">导出 JSON</button>
+      </div>
+
+      <div class="group">
+        <label for="jsonInput">导入 JSON / 粘贴复现数据</label>
+        <textarea id="jsonInput" rows="10" placeholder="把之前复制的 JSON 粘贴到这里"></textarea>
+        <button id="importBtn">导入并复现</button>
+      </div>
+
+      <div class="group small">
+        <div id="status">状态：请先在右侧画板中画一条连续轨迹。</div>
+      </div>
+    </aside>
+
+    <main class="stage-wrap">
+      <canvas id="canvas" width="1000" height="700"></canvas>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

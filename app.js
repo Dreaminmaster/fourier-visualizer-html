@@ -1,0 +1,399 @@
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const clearBtn = document.getElementById('clearBtn');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const playBtn = document.getElementById('playBtn');
+const copyBtn = document.getElementById('copyBtn');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const jsonInput = document.getElementById('jsonInput');
+const termsRange = document.getElementById('termsRange');
+const termsValue = document.getElementById('termsValue');
+const durationInput = document.getElementById('durationInput');
+const sampleInput = document.getElementById('sampleInput');
+const statusEl = document.getElementById('status');
+
+let drawing = false;
+let rawPoints = [];
+let sampledPoints = [];
+let epicycles = [];
+let resultTrail = [];
+let isPlaying = false;
+let startTime = 0;
+let pausedProgress = 0;
+let lastEndpoint = null;
+
+function setStatus(text) {
+  statusEl.textContent = '状态：' + text;
+}
+
+function resizeForDevicePixelRatio() {
+  const ratio = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.round(rect.width * ratio);
+  canvas.height = Math.round(rect.height * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  drawScene();
+}
+window.addEventListener('resize', resizeForDevicePixelRatio);
+
+function getPointerPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
+  };
+}
+
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function samplePolyline(points, targetCount) {
+  if (points.length < 2) return points.slice();
+  const segLengths = [];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const len = distance(points[i - 1], points[i]);
+    segLengths.push(len);
+    total += len;
+  }
+  if (total === 0) return points.slice(0, targetCount);
+  const sampled = [];
+  for (let i = 0; i < targetCount; i++) {
+    const target = (i / targetCount) * total;
+    let acc = 0;
+    let segIndex = 0;
+    while (segIndex < segLengths.length && acc + segLengths[segIndex] < target) {
+      acc += segLengths[segIndex];
+      segIndex++;
+    }
+    if (segIndex >= segLengths.length) {
+      sampled.push({ ...points[points.length - 1] });
+      continue;
+    }
+    const p1 = points[segIndex];
+    const p2 = points[segIndex + 1];
+    const segLen = segLengths[segIndex] || 1;
+    const t = (target - acc) / segLen;
+    sampled.push({
+      x: p1.x + (p2.x - p1.x) * t,
+      y: p1.y + (p2.y - p1.y) * t,
+    });
+  }
+  return sampled;
+}
+
+function dft(points) {
+  const N = points.length;
+  const out = [];
+  for (let k = 0; k < N; k++) {
+    let re = 0;
+    let im = 0;
+    for (let n = 0; n < N; n++) {
+      const phi = (-2 * Math.PI * k * n) / N;
+      const x = points[n].x;
+      const y = points[n].y;
+      re += x * Math.cos(phi) - y * Math.sin(phi);
+      im += x * Math.sin(phi) + y * Math.cos(phi);
+    }
+    out.push({ re, im, k });
+  }
+  return out;
+}
+
+function extractEpicycles(complex) {
+  const N = complex.length;
+  const res = [];
+  for (let i = 0; i < N; i++) {
+    const j = i % 2 === 0 ? i / 2 : N - (i + 1) / 2;
+    const { re, im } = complex[j];
+    const freq = ((j + N / 2) % N) - N / 2;
+    res.push({
+      frequency: freq,
+      amplitude: Math.hypot(re, im) / N,
+      phase: Math.atan2(im, re),
+    });
+  }
+  return res.sort((a, b) => b.amplitude - a.amplitude);
+}
+
+function getTermCount() {
+  return Math.min(Number(termsRange.value), epicycles.length || Number(termsRange.value));
+}
+
+function computeEndpoint(t, count) {
+  let x = 0;
+  let y = 0;
+  const positions = [];
+  for (let i = 0; i < count; i++) {
+    const e = epicycles[i];
+    const prevX = x;
+    const prevY = y;
+    x += e.amplitude * Math.cos(e.frequency * t + e.phase);
+    y += e.amplitude * Math.sin(e.frequency * t + e.phase);
+    positions.push({ cx: prevX, cy: prevY, x, y, r: e.amplitude });
+  }
+  return { x, y, positions };
+}
+
+function drawRawStroke() {
+  if (rawPoints.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(rawPoints[0].x, rawPoints[0].y);
+  for (let i = 1; i < rawPoints.length; i++) {
+    ctx.lineTo(rawPoints[i].x, rawPoints[i].y);
+  }
+  ctx.strokeStyle = 'rgba(37,99,235,0.25)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawTrail() {
+  if (resultTrail.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(resultTrail[0].x, resultTrail[0].y);
+  for (let i = 1; i < resultTrail.length; i++) {
+    ctx.lineTo(resultTrail[i].x, resultTrail[i].y);
+  }
+  ctx.strokeStyle = '#111827';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+}
+
+function drawEpicycles(positions) {
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  for (const p of positions) {
+    ctx.beginPath();
+    ctx.arc(p.cx, p.cy, p.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(p.cx, p.cy);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  }
+}
+
+function drawScene() {
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  drawRawStroke();
+  drawTrail();
+  if (lastEndpoint?.positions) {
+    drawEpicycles(lastEndpoint.positions);
+    ctx.beginPath();
+    ctx.arc(lastEndpoint.x, lastEndpoint.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#ef4444';
+    ctx.fill();
+  }
+}
+
+function animateFrame(now) {
+  if (!isPlaying || epicycles.length === 0) return;
+  const duration = Math.max(1000, Number(durationInput.value) || 12000);
+  const elapsed = now - startTime;
+  let progress = pausedProgress + elapsed / duration;
+  if (progress >= 1) {
+    progress = 1;
+    isPlaying = false;
+  }
+  const t = progress * Math.PI * 2;
+  const endpoint = computeEndpoint(t, getTermCount());
+  lastEndpoint = endpoint;
+  if (!resultTrail.length || distance(resultTrail[resultTrail.length - 1], endpoint) > 0.8) {
+    resultTrail.push({ x: endpoint.x, y: endpoint.y });
+  }
+  drawScene();
+  if (isPlaying) {
+    requestAnimationFrame(animateFrame);
+  } else {
+    pausedProgress = progress;
+    setStatus(progress >= 1 ? '播放完成。可复制 JSON 或调整项数重播。' : '已暂停。');
+  }
+}
+
+function resetPlayback() {
+  resultTrail = [];
+  pausedProgress = 0;
+  lastEndpoint = null;
+}
+
+function play() {
+  if (!epicycles.length) {
+    setStatus('还没有 Fourier 数据，请先生成或导入。');
+    return;
+  }
+  isPlaying = true;
+  startTime = performance.now();
+  setStatus('正在播放 Fourier 重建动画。');
+  requestAnimationFrame(animateFrame);
+}
+
+function pause() {
+  isPlaying = false;
+}
+
+function buildExportPayload() {
+  return {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    source: {
+      rawPoints,
+      sampledPoints,
+    },
+    settings: {
+      duration: Number(durationInput.value) || 12000,
+      sampleCount: Number(sampleInput.value) || 512,
+      termCount: getTermCount(),
+      canvas: {
+        width: canvas.getBoundingClientRect().width,
+        height: canvas.getBoundingClientRect().height,
+      },
+    },
+    epicycles,
+  };
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  drawing = true;
+  isPlaying = false;
+  rawPoints = [];
+  sampledPoints = [];
+  epicycles = [];
+  resultTrail = [];
+  lastEndpoint = null;
+  const p = getPointerPos(e);
+  rawPoints.push(p);
+  drawScene();
+  setStatus('正在绘制轨迹…');
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!drawing) return;
+  const p = getPointerPos(e);
+  const last = rawPoints[rawPoints.length - 1];
+  if (!last || distance(last, p) > 1.5) {
+    rawPoints.push(p);
+    drawScene();
+  }
+});
+
+function finishDrawing() {
+  if (!drawing) return;
+  drawing = false;
+  setStatus(rawPoints.length > 1 ? '绘制完成，可点击“生成 Fourier”。' : '点太少，请重新绘制。');
+}
+canvas.addEventListener('pointerup', finishDrawing);
+canvas.addEventListener('pointerleave', finishDrawing);
+
+clearBtn.addEventListener('click', () => {
+  drawing = false;
+  rawPoints = [];
+  sampledPoints = [];
+  epicycles = [];
+  resultTrail = [];
+  lastEndpoint = null;
+  pausedProgress = 0;
+  isPlaying = false;
+  jsonInput.value = '';
+  drawScene();
+  setStatus('已清空。请重新绘制轨迹。');
+});
+
+analyzeBtn.addEventListener('click', () => {
+  if (rawPoints.length < 2) {
+    setStatus('请先绘制一条连续轨迹。');
+    return;
+  }
+  const sampleCount = Math.max(64, Number(sampleInput.value) || 512);
+  sampledPoints = samplePolyline(rawPoints, sampleCount);
+  const complex = dft(sampledPoints);
+  epicycles = extractEpicycles(complex);
+  termsRange.max = String(epicycles.length);
+  if (Number(termsRange.value) > epicycles.length) {
+    termsRange.value = String(epicycles.length);
+  }
+  termsValue.textContent = termsRange.value;
+  resetPlayback();
+  setStatus(`Fourier 已生成：${epicycles.length} 项，可播放或导出。`);
+  drawScene();
+});
+
+playBtn.addEventListener('click', () => {
+  if (isPlaying) {
+    pause();
+  } else {
+    if (pausedProgress >= 1) resetPlayback();
+    play();
+  }
+});
+
+termsRange.addEventListener('input', () => {
+  termsValue.textContent = termsRange.value;
+  if (epicycles.length) {
+    resetPlayback();
+    const endpoint = computeEndpoint(0, getTermCount());
+    lastEndpoint = endpoint;
+    drawScene();
+    setStatus(`已切换为前 ${getTermCount()} 项，可重新播放。`);
+  }
+});
+
+copyBtn.addEventListener('click', async () => {
+  if (!epicycles.length) {
+    setStatus('没有可复制的数据，请先生成或导入。');
+    return;
+  }
+  const text = JSON.stringify(buildExportPayload(), null, 2);
+  try {
+    await navigator.clipboard.writeText(text);
+    jsonInput.value = text;
+    setStatus('JSON 已复制到剪贴板。');
+  } catch {
+    jsonInput.value = text;
+    setStatus('浏览器剪贴板不可用，已填入文本框，请手动复制。');
+  }
+});
+
+exportBtn.addEventListener('click', () => {
+  if (!epicycles.length) {
+    setStatus('没有可导出的数据，请先生成或导入。');
+    return;
+  }
+  const blob = new Blob([JSON.stringify(buildExportPayload(), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'fourier-visualizer-data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus('JSON 已导出。');
+});
+
+importBtn.addEventListener('click', () => {
+  try {
+    const data = JSON.parse(jsonInput.value);
+    if (!Array.isArray(data.epicycles)) throw new Error('epicycles 缺失');
+    rawPoints = data.source?.rawPoints || [];
+    sampledPoints = data.source?.sampledPoints || [];
+    epicycles = data.epicycles;
+    if (data.settings?.duration) durationInput.value = String(data.settings.duration);
+    if (data.settings?.sampleCount) sampleInput.value = String(data.settings.sampleCount);
+    const preferredTermCount = data.settings?.termCount || Math.min(80, epicycles.length);
+    termsRange.max = String(epicycles.length);
+    termsRange.value = String(Math.max(1, Math.min(preferredTermCount, epicycles.length)));
+    termsValue.textContent = termsRange.value;
+    resetPlayback();
+    lastEndpoint = computeEndpoint(0, getTermCount());
+    drawScene();
+    setStatus('导入成功，可直接播放复现。');
+  } catch (err) {
+    setStatus('导入失败：' + err.message);
+  }
+});
+
+resizeForDevicePixelRatio();
+setStatus('请先在右侧画板中画一条连续轨迹。');
