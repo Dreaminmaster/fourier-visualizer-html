@@ -10,20 +10,31 @@
   <div class="app-shell">
     <header class="topbar">
       <div>
-        <h1>Fourier Visualizer</h1>
-        <p class="desc">Draw a path, convert it into Fourier epicycles, and replay it across desktop and mobile.</p>
+        <h1>Fourier Canvas Lab</h1>
+        <p class="desc">Draw, decompose, and replay freehand paths as Fourier epicycles — with responsive controls and pannable canvas navigation.</p>
       </div>
       <div class="top-links">
+        <a href="https://dreaminmaster.github.io/fourier-visualizer-html/" target="_blank" rel="noreferrer">Live Demo</a>
         <a href="README.md" target="_blank" rel="noreferrer">README</a>
       </div>
     </header>
 
     <div class="app">
       <aside class="panel">
+        <section class="hero-card">
+          <strong>Fourier drawing playground</strong>
+          <span>Draw a path, inspect its Fourier reconstruction, and revisit the same result later with import/export.</span>
+        </section>
+
         <section class="group action-grid">
           <button id="clearBtn">Clear</button>
           <button id="analyzeBtn">Generate Fourier</button>
           <button id="playBtn">Play / Pause</button>
+        </section>
+
+        <section class="group action-grid compact">
+          <button id="resetViewBtn">Reset View</button>
+          <button id="centerPathBtn">Center Path</button>
         </section>
 
         <section class="group">
@@ -52,27 +63,35 @@
           <input id="importFile" type="file" accept="application/json,.json" />
         </section>
 
-        <details class="group advanced" open>
+        <details class="group advanced">
           <summary>Paste JSON / Advanced Import</summary>
           <label for="jsonInput">Paste previously exported JSON data</label>
           <textarea id="jsonInput" rows="10" placeholder="Paste replay JSON here"></textarea>
           <button id="importBtn">Import and Replay</button>
         </details>
 
+        <section class="group small tips">
+          <div><strong>Navigation</strong></div>
+          <div>Desktop: hold <code>Space</code> and drag to pan, use the mouse wheel to zoom.</div>
+          <div>Mobile: use two fingers to pan or pinch to zoom.</div>
+          <div>Draw with one pointer inside the viewport.</div>
+        </section>
+
         <section class="group small">
-          <div id="status">Status: draw a continuous path in the canvas area.</div>
+          <div id="status">Status: draw a continuous path in the canvas viewport.</div>
         </section>
       </aside>
 
       <main class="stage-panel">
         <div class="stage-head">
           <div>
-            <h2>Canvas</h2>
-            <p>Works on desktop and mobile. Draw with mouse, touch, or pen.</p>
+            <h2>Viewport Canvas</h2>
+            <p>A fixed viewport over a larger virtual drawing space, designed for desktop and mobile.</p>
           </div>
+          <div class="viewport-badge">Pan & Zoom Enabled</div>
         </div>
         <div class="stage-wrap">
-          <canvas id="canvas" width="1000" height="700"></canvas>
+          <canvas id="canvas" width="1200" height="820"></canvas>
         </div>
       </main>
     </div>

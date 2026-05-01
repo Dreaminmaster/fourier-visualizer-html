@@ -1,34 +1,42 @@
-# Fourier Visualizer HTML
+# Fourier Canvas Lab
 
 [![在线演示](https://img.shields.io/badge/Live%20Demo-%E6%89%93%E5%BC%80-blue?style=for-the-badge)](https://dreaminmaster.github.io/fourier-visualizer-html/)
 [![English](https://img.shields.io/badge/README-English-green?style=for-the-badge)](./README.md)
 
-一个轻量的浏览器版 Fourier / Epicycle 可视化工具：用户可以直接在页面中手绘一条连续轨迹，将其分解为频率分量，并通过一串旋转圆动态复现原始路径。
+一个浏览器版 Fourier 绘图实验工具：手绘轨迹、分解为旋转圆、再通过可平移可缩放的画布视窗进行动态复现。
+
+![项目封面](./assets/cover.png)
 
 ## 在线演示
 
 - **打开 Demo：** https://dreaminmaster.github.io/fourier-visualizer-html/
 
-## 为什么做这个项目
+## 演示预览
 
-这个项目把自由手绘的二维轨迹转化为一个既可视又带有数学意味的 Fourier 重建过程：
+![Demo GIF](./assets/demo.gif)
+
+## 项目简介
+
+Fourier Canvas Lab 把自由手绘的二维轨迹转化为一个既可视又带有数学意味的 Fourier 重建流程：
 
 - 直接在浏览器中绘制路径
 - 将路径分解为旋转圆
 - 用旋转圆动态重建图形
-- 保存并恢复完全相同的重建状态
+- 用 JSON 保存和恢复完全相同的回放状态
+- 在更大的虚拟画布中进行平移与缩放浏览
 
-整个项目被设计成简单、可移植的静态网页应用，兼顾电脑和手机浏览器使用。
+整个项目保持轻量、适合静态托管，并兼顾电脑和手机浏览器使用。
 
 ## 功能特性
 
-- 在浏览器中手绘连续轨迹
-- 将轨迹转换为 Fourier / Epicycle 表达
-- 用旋转圆动画重建原始图形
-- 调节保留项数量
-- 复制可复现 JSON 数据
-- 导出和导入 JSON 以精确复现
-- 支持从 JSON 文件导入回放数据
+- 浏览器中连续手绘路径
+- Fourier / Epicycle 重建回放
+- 可调节保留项数量，用于对比近似程度
+- 支持复制与导出回放 JSON
+- 支持粘贴 JSON 或导入 JSON 文件
+- 固定视窗 + 更大虚拟画布
+- 桌面端支持平移 / 缩放
+- 移动端支持双指平移与捏合缩放
 - 响应式布局，兼容桌面端和移动端
 
 ## 快速开始
@@ -46,12 +54,28 @@
 - Netlify
 - Vercel
 
+## 操作说明
+
+### 桌面端
+
+- 用鼠标或触控笔绘制
+- 按住 `Space` 再拖动可平移视图
+- 使用鼠标滚轮缩放
+
+### 移动端
+
+- 单指绘制
+- 双指平移
+- 双指捏合缩放
+
 ## 项目结构
 
 ```text
 index.html         # 页面结构
 style.css          # 响应式布局与样式
 app.js             # 绘制、变换、动画、导入导出逻辑
+assets/cover.png   # 项目封面图
+assets/demo.gif    # 演示动图
 README.md          # 英文文档
 README.zh-CN.md    # 中文文档
 ```
@@ -72,6 +96,7 @@ README.zh-CN.md    # 中文文档
 - 重采样点集
 - 旋转圆参数（`frequency`、`amplitude`、`phase`）
 - 播放设置
+- 当前视窗状态
 
 这意味着同一份数据可以被复制、保存、分享，并在之后再次精确复现。
 
