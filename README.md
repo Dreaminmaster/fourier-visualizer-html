@@ -1,12 +1,24 @@
 # Fourier Visualizer HTML
 
-[中文说明 / Chinese Version](./README.zh-CN.md)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open-blue?style=for-the-badge)](https://dreaminmaster.github.io/fourier-visualizer-html/)
+[![Chinese](https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-green?style=for-the-badge)](./README.zh-CN.md)
 
 A lightweight browser-based Fourier epicycle visualizer for drawing a path, decomposing it into frequency components, and replaying it as a chain of rotating circles.
 
-## Overview
+## Live Demo
 
-Fourier Visualizer HTML lets users draw a continuous path directly in the browser and reconstruct it using Fourier epicycles. The project is designed as a simple, portable static web app that works across desktop and mobile browsers.
+- **Open Demo:** https://dreaminmaster.github.io/fourier-visualizer-html/
+
+## Why this project
+
+This project turns freehand 2D drawing into a Fourier-based reconstruction process that is both mathematical and visual:
+
+- draw a path directly in the browser
+- decompose it into epicycles
+- replay the shape as rotating circles
+- save and restore the exact reconstruction state
+
+It is designed as a small, portable static web app that works across desktop and mobile browsers.
 
 ## Features
 
@@ -16,18 +28,32 @@ Fourier Visualizer HTML lets users draw a continuous path directly in the browse
 - Adjust the number of retained terms
 - Copy reproducible JSON data
 - Export and import JSON for exact replay
+- Import replay data from a JSON file
 - Responsive layout for desktop and mobile use
 
-## Demo
+## Quick Start
 
-Open `index.html` locally in a browser, or deploy the folder as a static site.
+### Run locally
+
+Open `index.html` directly in a browser.
+
+### Deploy as a static site
+
+Upload the folder to any static host, such as:
+
+- GitHub Pages
+- Cloudflare Pages
+- Netlify
+- Vercel
 
 ## Project Structure
 
 ```text
-index.html   # UI structure
-style.css    # responsive layout and styling
-app.js       # drawing, transform, animation, import/export logic
+index.html         # UI structure
+style.css          # responsive layout and styling
+app.js             # drawing, transform, animation, import/export logic
+README.md          # English documentation
+README.zh-CN.md    # Chinese documentation
 ```
 
 ## How It Works
@@ -52,8 +78,18 @@ This makes it possible to copy, save, share, and replay the same drawing later.
 ## Notes
 
 - The current prototype uses a direct DFT implementation for clarity.
-- It can be upgraded to FFT for better performance on heavier workloads.
+- FFT can be introduced later as a performance optimization without changing the target transform.
 - The current version is best suited for single-stroke continuous paths.
+
+## Roadmap
+
+Possible next steps:
+
+- FFT-based acceleration
+- SVG path import
+- Better sampling around sharp turns
+- Multi-stroke / multi-contour support
+- Local persistence for recent drawings
 
 ## License
 
